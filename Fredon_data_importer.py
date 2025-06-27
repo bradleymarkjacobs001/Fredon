@@ -52,7 +52,7 @@ def main():
         df_highest_complete = fm.get_projects_with_highest_complete(df) 
         if df_highest_complete:
             st.write("Projects with the highest % Complete:")
-            st.data_editor(pd.DataFrame(df_highest_complete, columns=["Project Name", "% Complete", "Status"]), use_container_width=True)
+            st.data_editor(pd.DataFrame(df_highest_complete, columns=["Project ID", "Project Name", "% Complete", "Status"]), use_container_width=True)
         else:
             st.write("No projects found with complete data.")
         

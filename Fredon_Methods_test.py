@@ -14,11 +14,11 @@ def remove_columns(df, columns_to_remove):
     return df.drop(columns=columns_to_remove)
 
 def get_list_of_projects(df):
-    # Get the column name by index (column 3 = PROJECT_NAME)
-    project_col = df.columns[pf.PROJECT_NAME] if pf.PROJECT_NAME < len(df.columns) else None
+    # Get the column name by index (column 1 = PROJECT_ID)
+    project_col = df.columns[pf.PROJECT_ID] if pf.PROJECT_ID < len(df.columns) else None
     
     if project_col is None:
-        print(f"Column index {pf.PROJECT_NAME} not found in DataFrame")
+        print(f"Column index {pf.PROJECT_ID} not found in DataFrame")
         return []
     
     df_clean = df.dropna(subset=[project_col])
@@ -27,29 +27,16 @@ def get_list_of_projects(df):
 
 def get_projects_with_highest_complete(df):
     # Get column names by index
+    projectid_col = df.columns[pf.PROJECT_ID] if pf.PROJECT_ID < len(df.columns) else None
+    complete_col = df.columns[pf.PERCENTAGE_COMPLETE] if pf.PERCENTAGE_COMPLETE < len(df.columns) else None
     project_col = df.columns[pf.PROJECT_NAME] if pf.PROJECT_NAME < len(df.columns) else None
     
-    # Find the "%Complete" or "% Complete" column
-    complete_col = None
-    for col in df.columns:
-        col_str = str(col).lower().strip()
-        if "% complete" in col_str or "%complete" in col_str or "complete" in col_str:
-            complete_col = col
-            # st.write(f"Found complete column: '{col}' at index {df.columns.get_loc(col)}")
-            break
-    
-    if project_col is None or complete_col is None:
-        # st.write(f"Debug: project_col={project_col}, complete_col={complete_col}")
-        # st.write("Available columns with 'complete' in name:")
-        # for i, col in enumerate(df.columns):
-        #     if "complete" in str(col).lower():
-        #         st.write(f"  {i}: '{col}'")
+    if projectid_col is None or complete_col is None or project_col is None:
+        st.write(f"Missing columns: PROJECT_ID={projectid_col}, COMPLETE={complete_col}, PROJECT_NAME={project_col}")
         return []
     
-    # st.write(f"Debug: Using project column '{project_col}' and complete column '{complete_col}'")
-    
     # Clean the data
-    df_clean = df.dropna(subset=[project_col, complete_col])
+    df_clean = df.dropna(subset=[projectid_col, project_col, complete_col])
     
     # Convert %Complete to numeric if it's not already
     if df_clean[complete_col].dtype == 'object':
@@ -61,37 +48,42 @@ def get_projects_with_highest_complete(df):
     
     # If values are between 0-1 (like 0.95), convert to percentage (like 95)
     max_val = df_clean[complete_col].max()
-    if max_val <= 1.0:
-        df_clean[complete_col] = df_clean[complete_col] * 100
+    
+    if max_val <= 1.1:  # Allow for slight floating point errors above 1.0
+        # Create new DataFrame with converted percentages
+        data_dict = {
+            projectid_col: df_clean[projectid_col].values,
+            project_col: df_clean[project_col].values,
+            complete_col: df_clean[complete_col].values * 100
+        }
+        df_clean = pd.DataFrame(data_dict)
     
     if df_clean.empty:
-        # st.write("Debug: No valid data after cleaning")
+        st.write("No data remaining after cleaning")
         return []
     
-    # st.write(f"Debug: Sample %Complete values: {df_clean[complete_col].head().tolist()}")
-    # st.write(f"Debug: Min: {df_clean[complete_col].min():.2f}, Max: {df_clean[complete_col].max():.2f}")
+    # Group by PROJECT_ID and get the maximum % Complete for each project
+    # First, get the actual maximum values per group
+    max_percentages = df_clean.groupby(projectid_col)[complete_col].max().reset_index()
     
-    # Group by project and get the row with maximum % Complete for each project
-    idx = df_clean.groupby(project_col)[complete_col].idxmax()
-    result = df_clean.loc[idx, [project_col, complete_col]].copy()
+    # Then get the corresponding project names by merging with the original data
+    # Get one row per project (take the first occurrence for project name)
+    project_info = df_clean.groupby(projectid_col)[project_col].first().reset_index()
     
-    # st.write(f"Debug: Found {len(result)} projects with max %Complete")
+    # Combine the data
+    result = pd.merge(max_percentages, project_info, on=projectid_col)
     
-    # Show the results for debugging
-    # for _, row in result.head().iterrows():
-    #     st.write(f"  {row[project_col]}: {row[complete_col]:.2f}%")
+    # Add status column - use 95 since we converted to percentage scale
+    result["Status"] = result[complete_col].apply(lambda x: "Calibrate" if x > 95 else "Operational")
     
-    # Add status column
-    result["Status"] = result[complete_col].apply(lambda x: "Calibrate" if x > 0.95 else "Operational")
-    
-    # Format % Complete as a percentage string (but keep original numeric value for comparison)
+    # Format % Complete as a percentage string
     result["% Complete Formatted"] = result[complete_col].apply(lambda x: f"{x:.2f}%" if pd.notnull(x) else "")
     
-    # Return as list of tuples: (Project_Name, Max_%, Status)
+    # Return as list of tuples: (Project_ID, Project_Name, Max_%, Status)
     projects = []
     for _, row in result.iterrows():
-        projects.append((row[project_col], row["% Complete Formatted"], row["Status"]))
-    
+        projects.append((row[projectid_col], row[project_col], row["% Complete Formatted"], row["Status"]))
+
     return projects
 
 def create_data_objects(df):
@@ -102,10 +94,10 @@ def create_data_objects(df):
         return pd.DataFrame()
     
     # Get the project column name by index
-    project_col = df.columns[pf.PROJECT_NAME] if pf.PROJECT_NAME < len(df.columns) else None
+    project_col = df.columns[pf.PROJECT_ID] if pf.PROJECT_ID < len(df.columns) else None
     
     if project_col is None:
-        st.write(f"Column index {pf.PROJECT_NAME} not found in DataFrame")
+        st.write(f"Column index {pf.PROJECT_ID} not found in DataFrame")
         return pd.DataFrame()
     
     # Create portfolio to hold all projects
@@ -139,7 +131,8 @@ def create_data_objects(df):
                 Client=project_data.iloc[0, pf.CLIENT] if pf.CLIENT < len(df.columns) else "Unknown",
                 Stage_of_Work=project_data.iloc[0, pf.STAGE_OF_WORK] if pf.STAGE_OF_WORK < len(df.columns) else "Unknown",
                 Template_Version="0.2",
-                Status="Operational"
+                Status="Operational",
+                Comments=str(project_data.iloc[0, pf.COMMENTS]) if hasattr(pf, 'COMMENTS') and pf.COMMENTS and pf.COMMENTS < len(df.columns) else None
             )
             
             # Process monthly data for this project
@@ -176,8 +169,8 @@ def create_data_objects(df):
                         actual_cost_to_date=float(project_data.iloc[mon, pf.ACTUAL_COST_TO_DATE]) if pf.ACTUAL_COST_TO_DATE and pf.ACTUAL_COST_TO_DATE < len(df.columns) else 0.0,
                         forecast_final_revenue=float(project_data.iloc[mon, pf.FORECAST_FINAL_REVENUE]) if pf.FORECAST_FINAL_REVENUE and pf.FORECAST_FINAL_REVENUE < len(df.columns) else 0.0,
                         actual_revenue_to_date=float(project_data.iloc[mon, pf.ACTUAL_REVENUE_TO_DATE]) if pf.ACTUAL_REVENUE_TO_DATE and pf.ACTUAL_REVENUE_TO_DATE < len(df.columns) else 0.0,
-                        notes=str(project_data.iloc[mon, pf.NOTES]) if hasattr(pf, 'NOTES') and pf.NOTES and pf.NOTES < len(df.columns) else None,
-                        Comments=str(project_data.iloc[mon, pf.COMMENTS]) if hasattr(pf, 'COMMENTS') and pf.COMMENTS and pf.COMMENTS < len(df.columns) else None
+                        notes=f"{float(project_data.iloc[mon, pf.PERCENTAGE_COMPLETE]) * 100:.0f}% Cost Complete" if pf.PERCENTAGE_COMPLETE and pf.PERCENTAGE_COMPLETE < len(df.columns) and pd.notnull(project_data.iloc[mon, pf.PERCENTAGE_COMPLETE]) else None
+                       
                     )
                     project_object.Monthly_data.append(monthly_record)
                 except (ValueError, IndexError, TypeError) as e:
@@ -208,17 +201,26 @@ def create_data_objects(df):
     
     # Add Excel export button
     if st.button("Export Portfolio to Excel"):
-        filename = create_excel_file_with_portfolio_data(Portfolio)
-        st.success(f"Excel file created with {len(Portfolio.projects)} projects: {filename}")
+        created_files = create_excel_file_with_portfolio_data(Portfolio)
         
-        # Offer download
-        with open(filename, "rb") as file:
-            st.download_button(
-                label="Download Portfolio Excel File",
-                data=file.read(),
-                file_name=filename,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+        if created_files:
+            st.success(f"Excel files created for {len(Portfolio.projects)} projects:")
+            for filename in created_files:
+                st.write(f"- {filename}")
+            
+            # Offer download for each file
+            for filename in created_files:
+                with open(filename, "rb") as file:
+                    file_label = "Calibrate Projects" if "Calibrate" in filename else "Operational Projects"
+                    st.download_button(
+                        label=f"Download {file_label}",
+                        data=file.read(),
+                        file_name=filename,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key=f"download_{filename}"  # Unique key for each button
+                    )
+        else:
+            st.warning("No files were created. Check if there are projects in the portfolio.")
     
     return all_project_data
 
@@ -226,129 +228,395 @@ def create_data_objects(df):
   
     
     
-def create_excel_file_with_portfolio_data(portfolio, filename="portfolio_output.xlsx"):
+def create_excel_file_with_portfolio_data(portfolio, base_filename="portfolio_output"):
+    """
+    Create two separate Excel files: one for Calibrate projects and one for Operational projects
+    """
+    # Separate projects by status
+    calibrate_projects = []
+    operational_projects = []
+    
+    for project in portfolio.projects:
+        # Determine project status based on max percentage complete
+        max_percentage = 0
+        for monthly_record in project.Monthly_data:
+            if monthly_record.notes and "% Cost Complete" in monthly_record.notes:
+                try:
+                    # Extract percentage from notes like "75% Cost Complete"
+                    percentage_str = monthly_record.notes.split('%')[0]
+                    percentage = float(percentage_str)
+                    max_percentage = max(max_percentage, percentage)
+                except:
+                    continue
+        
+        # Classify project based on max percentage
+        if max_percentage > 95:
+            calibrate_projects.append(project)
+        else:
+            operational_projects.append(project)
+    
+    created_files = []
+    
+    # Create Calibrate projects file
+    if calibrate_projects:
+        calibrate_filename = f"{base_filename}_Calibrate.xlsx"
+        _create_workbook_for_projects(calibrate_projects, calibrate_filename)
+        
+        # Validate formatting
+        success, message = validate_excel_formatting(calibrate_filename)
+        print(f"Calibrate file formatting validation: {message}")
+        
+        created_files.append(calibrate_filename)
+    
+    # Create Operational projects file
+    if operational_projects:
+        operational_filename = f"{base_filename}_Operational.xlsx"
+        _create_workbook_for_projects(operational_projects, operational_filename)
+        
+        # Validate formatting
+        success, message = validate_excel_formatting(operational_filename)
+        print(f"Operational file formatting validation: {message}")
+        
+        created_files.append(operational_filename)
+    
+    return created_files
+
+def _create_workbook_for_projects(projects, filename):
+    """
+    Helper function to create an Excel workbook for a list of projects with proper formatting
+    """
+    from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+    
     # Create a new workbook
     workbook = px.Workbook()
     
     # Remove the default sheet
     workbook.remove(workbook.active)
     
+    # Define border styles to match reference template
+    thin_border = Side(border_style="thin", color="000000")
+    medium_border = Side(border_style="medium", color="000000")
+    
+    # Define styles to match the reference template
+    header_font = Font(name='Calibri', size=18, bold=True)
+    header_fill = PatternFill(start_color='FFD9D9D9', end_color='FFD9D9D9', fill_type='solid')
+    header_alignment = Alignment(horizontal='center', vertical='center')
+    header_border = Border(top=medium_border, bottom=medium_border)
+    
+    summary_font = Font(name='Calibri', size=16, bold=True)
+    summary_fill = PatternFill(start_color='FFAFE7E7', end_color='FFAFE7E7', fill_type='solid')
+    summary_alignment = Alignment(horizontal='center', vertical='center')
+    
+    label_font = Font(name='Calibri', size=11, bold=True)
+    value_font = Font(name='Calibri', size=11, bold=False)
+    value_alignment = Alignment(horizontal='left', vertical='center')
+    
+    version_font = Font(name='Calibri', size=10, bold=True)
+    version_fill = PatternFill(start_color='FFD9D9D9', end_color='FFD9D9D9', fill_type='solid')
+    version_alignment = Alignment(horizontal='right', vertical='center')
+    version_border = Border(left=medium_border, top=medium_border)
+    
+    monthly_header_font = Font(name='Calibri', size=10, bold=True)
+    monthly_header_fill = PatternFill(start_color='FFD9D9D9', end_color='FFD9D9D9', fill_type='solid')
+    monthly_header_alignment = Alignment(horizontal='center', vertical='top')
+    
+    # Data row styles
+    data_font = Font(name='Calibri', size=11, bold=False)
+    data_border = Border(left=thin_border, right=thin_border, top=thin_border, bottom=thin_border)
+    
     # Create a worksheet for each project
-    for idx, project_object in enumerate(portfolio.projects):
-        # Create worksheet with project name (sanitized for Excel)
-        sheet_name = project_object.Project_Name[:31] if len(project_object.Project_Name) <= 31 else project_object.Project_Name[:28] + "..."
-        # Remove invalid characters for Excel sheet names
-        invalid_chars = ['\\', '/', '*', '[', ']', ':', '?']
-        for char in invalid_chars:
-            sheet_name = sheet_name.replace(char, '_')
+    for idx, project_object in enumerate(projects):
+        # Create worksheet with incremental naming: Project(1), Project(2), etc.
+        sheet_name = f"Project({idx + 1})"
         
         sheet = workbook.create_sheet(title=sheet_name)
         
-        # Template headers
+        # Set column widths to match reference template
+        sheet.column_dimensions['A'].width = 12.55
+        sheet.column_dimensions['B'].width = 13.0
+        sheet.column_dimensions['C'].width = 13.0
+        sheet.column_dimensions['D'].width = 13.0
+        sheet.column_dimensions['E'].width = 13.0
+        sheet.column_dimensions['F'].width = 13.0
+        sheet.column_dimensions['G'].width = 13.0
+        sheet.column_dimensions['H'].width = 13.0
+        sheet.column_dimensions['I'].width = 7.44
+        sheet.column_dimensions['J'].width = 31.44
+        
+        # Template headers with formatting
         sheet["A1"] = "TEMPLATE VERSION:"
+        sheet["A1"].font = version_font
+        sheet["A1"].fill = version_fill
+        sheet["A1"].alignment = version_alignment
+        sheet["A1"].border = version_border
+        
         sheet["B1"] = project_object.Template_Version
+        sheet["B1"].font = Font(name='Calibri', size=12, bold=True)
+        sheet["B1"].fill = version_fill
+        sheet["B1"].alignment = Alignment(horizontal='center', vertical='center')
+        sheet["B1"].border = Border(top=medium_border)
+        
+        # Apply formatting to rest of header row
+        for col in ['C', 'D', 'E', 'F', 'G']:
+            sheet[f"{col}1"].fill = version_fill
+            sheet[f"{col}1"].border = Border(top=medium_border, bottom=medium_border if col in ['D', 'E'] else None)
+        
         sheet["H1"] = "OCTANT BUSINESS - PROJECT DATA UPLOAD TEMPLATE"
+        sheet["H1"].font = header_font
+        sheet["H1"].fill = header_fill
+        sheet["H1"].alignment = header_alignment
+        sheet["H1"].border = header_border
+        
         sheet["F2"] = "PROJECT SUMMARY"
+        sheet["F2"].font = summary_font
+        sheet["F2"].fill = summary_fill
+        sheet["F2"].alignment = summary_alignment
         
-        # Project summary labels
-        sheet["A4"] = "Project Name*"
-        sheet["A5"] = "Project ID*"
-        sheet["A6"] = "Location*" 
-        sheet["A7"] = "Post Code"   
-        sheet["A8"] = "Sector*"
-        sheet["A9"] = "Portfolio/ Bus Unit/ Dept ID*"
-        sheet["A11"] = "Comments this period"
-        sheet["A12"] = "(max 200 Characters )"
-        sheet["H4"] = "Asset Type*"
-        sheet["H5"] = "Contract Type"
-        sheet["H6"] = "Contract Financial"
-        sheet["H7"] = "Client*"
-        sheet["H8"] = "Stage of Work*"
+        # Project summary labels with formatting and borders
+        labels = [
+            ("A4", "Project Name*"),
+            ("A5", "Project ID*"),
+            ("A6", "Location*"),
+            ("A7", "Post Code"),
+            ("A8", "Sector*"),
+            ("A9", "Portfolio/ Bus Unit/ Dept ID*"),
+            ("A11", "Comments this period"),
+            ("A12", "(max 200 Characters )"),
+            ("H4", "Asset Type*"),
+            ("H5", "Contract Type"),
+            ("H6", "Contract Financial"),
+            ("H7", "Client*"),
+            ("H8", "Stage of Work*")
+        ]
         
-        # Project summary data
-        sheet["C4"] = project_object.Project_Name
-        sheet["C5"] = project_object.Project_ID
-        sheet["C6"] = project_object.Location
-        sheet["C7"] = project_object.Post_Code
-        sheet["C8"] = project_object.Sector
-        sheet["C9"] = project_object.Portfolio_Bus_Unit_Dept_ID
-        sheet["J4"] = project_object.Asset_Type
-        sheet["J5"] = project_object.Contract_Type
-        sheet["J6"] = project_object.Contract_Financial
-        sheet["J7"] = project_object.Client
-        sheet["J8"] = project_object.Stage_of_Work
+        for cell_ref, label_text in labels:
+            sheet[cell_ref] = label_text
+            sheet[cell_ref].font = label_font
+            # Add left border for A column cells
+            if cell_ref.startswith('A'):
+                sheet[cell_ref].border = Border(left=medium_border)
+        
+        # Project summary data with formatting
+        data_cells = [
+            ("C4", project_object.Project_Name),
+            ("C5", project_object.Project_ID),
+            ("C6", project_object.Location),
+            ("C7", project_object.Post_Code),
+            ("C8", project_object.Sector),
+            ("C9", project_object.Portfolio_Bus_Unit_Dept_ID),
+            ("J4", project_object.Asset_Type),
+            ("J5", project_object.Contract_Type),
+            ("J6", project_object.Contract_Financial),
+            ("J7", project_object.Client),
+            ("J8", project_object.Stage_of_Work)
+        ]
+        
+        for cell_ref, value in data_cells:
+            sheet[cell_ref] = value if value else ""
+            sheet[cell_ref].font = value_font
+            sheet[cell_ref].alignment = value_alignment
+            # Add borders for specific cells as in reference
+            if cell_ref in ["C4", "C5"]:
+                if cell_ref == "C4":
+                    sheet[cell_ref].border = Border(left=medium_border, top=medium_border)
+                else:
+                    sheet[cell_ref].border = Border(left=medium_border, right=medium_border, top=medium_border)
+        
+        # Merge cells for comments (C11:J12)
+        sheet.merge_cells('C11:J12')
+        sheet["C11"] = project_object.Comments if project_object.Comments else ""
+        sheet["C11"].font = value_font
+        sheet["C11"].alignment = value_alignment
         
         # Instructions
         sheet["A15"] = "Instructions: Please overwrite all mandatory cells with your own business data"
         sheet["A16"] = "You may also upload this template directly as sample data to experience"
         sheet["A17"] = "Octant AI with sample operational data"
         
-        # Monthly data headers
+        # Merge cells for instructions
+        sheet.merge_cells('A14:F14')
+        
+        # Monthly data headers with formatting
         sheet["F20"] = "MONTHLY DATA"
-        sheet["A21"] = "Reporting Date*"
-        sheet["B21"] = "Approved Budget (including contingency)"
-        sheet["C21"] = "Forecast End Date (practical completion)"
-        sheet["D21"] = "Forecast Final Cost*"
-        sheet["E21"] = "Contingency Remaining"
-        sheet["F21"] = "Actual Cost to Date*"
-        sheet["G21"] = "Forecast Final Revenue*"
-        sheet["H21"] = "Actual Revenue to Date*"
-        sheet["I21"] = "Notes"
-        sheet["J21"] = "Comments"
+        sheet["F20"].font = summary_font
+        sheet["F20"].fill = summary_fill
+        sheet["F20"].alignment = summary_alignment
+        
+        monthly_headers = [
+            ("A21", "Reporting Date*"),
+            ("B21", "Approved Budget   (including contingency)"),
+            ("C21", "Forecast End Date (practical completion)"),
+            ("D21", "Forecast Final Cost*"),
+            ("E21", "Contingency Remaining"),
+            ("F21", "Actual Cost to Date*"),
+            ("G21", "Forecast Final Revenue*"),
+            ("H21", "Actual Revenue to Date*"),
+            ("I21", "Notes"),
+            ("J21", "Comments")
+        ]
+        
+        for cell_ref, header_text in monthly_headers:
+            sheet[cell_ref] = header_text
+            sheet[cell_ref].font = monthly_header_font
+            sheet[cell_ref].fill = monthly_header_fill
+            sheet[cell_ref].alignment = monthly_header_alignment
+            
+            # Add borders for monthly headers
+            col_letter = cell_ref[0]
+            if col_letter == 'A':
+                sheet[cell_ref].border = Border(left=medium_border, right=thin_border, top=medium_border, bottom=thin_border)
+            elif col_letter in ['B', 'C', 'D', 'E', 'F', 'G', 'H']:
+                sheet[cell_ref].border = Border(left=thin_border, right=thin_border, top=medium_border, bottom=thin_border)
+            else:  # I, J columns
+                sheet[cell_ref].border = Border(left=thin_border, top=medium_border, bottom=thin_border)
+        
+        # Merge cells for Notes and Comments columns (I21:K21)
+        sheet.merge_cells('I21:K21')
         
         # Monthly data rows
         start_row = 22
         for record_idx, monthly_record in enumerate(project_object.Monthly_data):
             row = start_row + record_idx
-            sheet[f"A{row}"] = monthly_record.Date
-            sheet[f"B{row}"] = monthly_record.approved_budget
-            sheet[f"C{row}"] = monthly_record.forecast_end_date
-            sheet[f"D{row}"] = monthly_record.forecast_final_cost
-            sheet[f"E{row}"] = monthly_record.contingency_remaining
-            sheet[f"F{row}"] = monthly_record.actual_cost_to_date
-            sheet[f"G{row}"] = monthly_record.forecast_final_revenue
-            sheet[f"H{row}"] = monthly_record.actual_revenue_to_date
-            sheet[f"I{row}"] = monthly_record.notes
-            sheet[f"J{row}"] = monthly_record.Comments
+            
+            # Data values
+            data_values = [
+                (f"A{row}", monthly_record.Date),
+                (f"B{row}", monthly_record.approved_budget),
+                (f"C{row}", monthly_record.forecast_end_date),
+                (f"D{row}", monthly_record.forecast_final_cost),
+                (f"E{row}", monthly_record.contingency_remaining),
+                (f"F{row}", monthly_record.actual_cost_to_date),
+                (f"G{row}", monthly_record.forecast_final_revenue),
+                (f"H{row}", monthly_record.actual_revenue_to_date),
+                (f"I{row}", monthly_record.notes)
+            ]
+            
+            for cell_ref, value in data_values:
+                sheet[cell_ref] = value
+                sheet[cell_ref].font = data_font
+                
+                # Add borders for data cells
+                col_letter = cell_ref[0]
+                if col_letter == 'A':
+                    sheet[cell_ref].border = Border(left=medium_border, right=thin_border, top=thin_border, bottom=thin_border)
+                elif col_letter in ['B', 'C', 'D', 'E', 'F', 'G', 'H']:
+                    sheet[cell_ref].border = data_border
+                else:  # I column
+                    sheet[cell_ref].border = Border(left=thin_border, top=thin_border, bottom=thin_border)
+            
+            # Merge cells for Notes column (I{row}:K{row})
+            sheet.merge_cells(f'I{row}:K{row}')
     
-    # Save the workbook
-    workbook.save(filename)
-    return filename
+    # Save the workbook with explicit Excel compatibility
+    try:
+        workbook.save(filename)
+        print(f"Successfully saved {filename}")
+        
+        # Re-open and re-save to ensure compatibility
+        temp_wb = px.load_workbook(filename)
+        temp_wb.save(filename)
+        temp_wb.close()
+        print(f"Re-saved {filename} for Excel compatibility")
+        
+    except Exception as e:
+        print(f"Error saving {filename}: {e}")
+        # Try alternative save method
+        try:
+            workbook.save(filename.replace('.xlsx', '_backup.xlsx'))
+            print(f"Saved backup version: {filename.replace('.xlsx', '_backup.xlsx')}")
+        except:
+            print(f"Failed to save backup version")
+    
+    workbook.close()
 
-def debug_dataframe_structure(df):
-    """Debug function to analyze DataFrame structure and find percentage columns"""
-    st.write("=== DEBUGGING DATAFRAME STRUCTURE ===")
-    st.write(f"DataFrame shape: {df.shape}")
-    st.write(f"Column count: {len(df.columns)}")
+def validate_excel_formatting(filename):
+    """
+    Validate that the Excel file has proper formatting applied
+    """
+    try:
+        wb = px.load_workbook(filename)
+        if not wb.sheetnames:
+            return False, "No sheets found"
+        
+        sheet = wb[wb.sheetnames[0]]
+        
+        # Check key formatting elements
+        checks = []
+        
+        # Check header formatting
+        a1_cell = sheet["A1"]
+        checks.append(("A1 font bold", a1_cell.font and a1_cell.font.bold))
+        checks.append(("A1 fill color", a1_cell.fill and hasattr(a1_cell.fill, 'start_color') and a1_cell.fill.start_color.rgb == 'FFD9D9D9'))
+        
+        # Check main header
+        h1_cell = sheet["H1"]
+        checks.append(("H1 font size", h1_cell.font and h1_cell.font.size == 18))
+        checks.append(("H1 alignment", h1_cell.alignment and h1_cell.alignment.horizontal == 'center'))
+        
+        # Check project summary
+        f2_cell = sheet["F2"]
+        checks.append(("F2 fill color", f2_cell.fill and hasattr(f2_cell.fill, 'start_color') and f2_cell.fill.start_color.rgb == 'FFAFE7E7'))
+        
+        # Check borders
+        a21_cell = sheet["A21"]
+        checks.append(("A21 borders", a21_cell.border and a21_cell.border.left and a21_cell.border.left.style == 'medium'))
+        
+        # Check merged cells
+        merged_count = len(sheet.merged_cells.ranges)
+        checks.append(("Merged cells", merged_count > 0))
+        
+        # Report results
+        passed = sum(1 for _, check in checks if check)
+        total = len(checks)
+        
+        wb.close()
+        
+        success = passed == total
+        message = f"Validation: {passed}/{total} checks passed"
+        
+        if not success:
+            failed_checks = [name for name, check in checks if not check]
+            message += f". Failed: {', '.join(failed_checks)}"
+        
+        return success, message
+        
+    except Exception as e:
+        return False, f"Error validating file: {e}"
+
+# def debug_dataframe_structure(df):
+#     """Debug function to analyze DataFrame structure and find percentage columns"""
+#     st.write("=== DEBUGGING DATAFRAME STRUCTURE ===")
+#     st.write(f"DataFrame shape: {df.shape}")
+#     st.write(f"Column count: {len(df.columns)}")
     
-    # Show first few columns with their indices
-    st.write("Column indices and names:")
-    for i, col in enumerate(df.columns[:20]):  # Show first 20 columns
-        st.write(f"  {i}: '{col}'")
+#     # Show first few columns with their indices
+#     st.write("Column indices and names:")
+#     for i, col in enumerate(df.columns[:20]):  # Show first 20 columns
+#         st.write(f"  {i}: '{col}'")
     
-    # Look for Complete columns specifically
-    st.write("\nColumns containing 'complete':")
-    complete_cols = []
-    for i, col in enumerate(df.columns):
-        if "complete" in str(col).lower():
-            complete_cols.append((i, col))
-            st.write(f"  {i}: '{col}'")
+#     # Look for Complete columns specifically
+#     st.write("\nColumns containing 'complete':")
+#     complete_cols = []
+#     for i, col in enumerate(df.columns):
+#         if "complete" in str(col).lower():
+#             complete_cols.append((i, col))
+#             st.write(f"  {i}: '{col}'")
     
-    if complete_cols:
-        # Show sample data from percentage columns
-        for col_idx, col_name in complete_cols[:3]:  # Show first 3 matching columns
-            st.write(f"\nSample data from column '{col_name}':")
-            sample_data = df[col_name].dropna().head(10)
-            st.write(sample_data.tolist())
-            st.write(f"Data type: {df[col_name].dtype}")
-    else:
-        st.write("No columns found containing 'complete'")
+#     if complete_cols:
+#         # Show sample data from percentage columns
+#         for col_idx, col_name in complete_cols[:3]:  # Show first 3 matching columns
+#             st.write(f"\nSample data from column '{col_name}':")
+#             sample_data = df[col_name].dropna().head(10)
+#             st.write(sample_data.tolist())
+#             st.write(f"Data type: {df[col_name].dtype}")
+#     else:
+#         st.write("No columns found containing 'complete'")
     
-    # Show project column data
-    if pf.PROJECT_NAME < len(df.columns):
-        project_col = df.columns[pf.PROJECT_NAME]
-        st.write(f"\nProject column (index {pf.PROJECT_NAME}): '{project_col}'")
-        unique_projects = df[project_col].dropna().unique()
-        st.write(f"Unique projects ({len(unique_projects)}): {unique_projects[:5].tolist()}")
+#     # Show project column data
+#     if pf.PROJECT_NAME < len(df.columns):
+#         project_col = df.columns[pf.PROJECT_NAME]
+#         st.write(f"\nProject column (index {pf.PROJECT_NAME}): '{project_col}'")
+#         unique_projects = df[project_col].dropna().unique()
+#         st.write(f"Unique projects ({len(unique_projects)}): {unique_projects[:5].tolist()}")
     
-    st.write("=== END DEBUGGING ===")
+#     st.write("=== END DEBUGGING ===")

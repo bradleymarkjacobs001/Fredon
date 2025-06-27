@@ -14,8 +14,7 @@ class MonthlyRecord:
     forecast_end_date: Optional[float] = None
     contingency_remaining: Optional[float] = None
     notes: Optional[str] = None
-    Comments: Optional[str] = None
-
+    
 @dataclass
 class Projects:
     Project_Name: str
@@ -33,6 +32,8 @@ class Projects:
     Contract_Type: Optional[str] = None
     Contract_Financial: Optional[str] = None
     Post_Code: Optional[str] = None
+    Comments: Optional[str] = None
+
     
 
 class Portfolio:
@@ -59,7 +60,8 @@ class Portfolio:
                 'Stage_of_Work': project.Stage_of_Work,
                 'Template_Version': project.Template_Version,
                 'Status': project.Status,
-                'Number_of_Monthly_Records': len(project.Monthly_data)
+                'Number_of_Monthly_Records': len(project.Monthly_data),
+                'Comments': project.Comments
             }
             project_dicts.append(project_dict)
         return DataFrame(project_dicts)
@@ -79,7 +81,7 @@ class Portfolio:
                     'Forecast_Final_Revenue': record.forecast_final_revenue,
                     'Actual_Revenue_To_Date': record.actual_revenue_to_date,
                     'Notes': record.notes,
-                    'Comments': record.Comments
+                      # Assuming Comments is a project-level attribute
                 }
                 monthly_records.append(record_dict)
         return DataFrame(monthly_records)

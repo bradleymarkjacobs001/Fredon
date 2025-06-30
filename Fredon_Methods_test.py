@@ -122,10 +122,10 @@ def create_data_objects(df):
                 Project_Name=project_data.iloc[0, pf.PROJECT_NAME],
                 Project_ID=project_data.iloc[0, pf.PROJECT_ID] if pf.PROJECT_ID < len(df.columns) else "Unknown",
                 Location=project_data.iloc[0, pf.LOCATION] if pf.LOCATION and pf.LOCATION < len(df.columns) else "Unknown",
-                Post_Code=project_data.iloc[0, pf.POST_CODE] if pf.POST_CODE and pf.POST_CODE < len(df.columns) else "Unknown",
+                Post_Code=project_data.iloc[0, pf.POST_CODE] if pf.POST_CODE and pf.POST_CODE < len(df.columns) else "",
                 Sector=project_data.iloc[0, pf.CLIENT_SECTOR] if pf.CLIENT_SECTOR < len(df.columns) else "Unknown",
                 Portfolio_Bus_Unit_Dept_ID=project_data.iloc[0, pf.PORTFOLIO_BUS_UNIT_DEPT_ID] if pf.PORTFOLIO_BUS_UNIT_DEPT_ID < len(df.columns) else "Unknown",
-                Asset_Type=project_data.iloc[0, pf.ASSET_TYPE] if pf.ASSET_TYPE and pf.ASSET_TYPE < len(df.columns) else "Unknown",
+                Asset_Type=project_data.iloc[0, pf.ASSET_TYPE] if pf.ASSET_TYPE and pf.ASSET_TYPE < len(df.columns) else "Other",
                 Contract_Type=project_data.iloc[0, pf.CONTRACT_TYPE] if pf.CONTRACT_TYPE and pf.CONTRACT_TYPE < len(df.columns) else "Unknown",
                 Contract_Financial=project_data.iloc[0, pf.CONTRACT_FINANCIAL] if pf.CONTRACT_FINANCIAL < len(df.columns) else "Unknown",
                 Client=project_data.iloc[0, pf.CLIENT] if pf.CLIENT < len(df.columns) else "Unknown",
@@ -310,15 +310,16 @@ def _create_workbook_for_projects(projects, filename):
     label_font = Font(name='Calibri', size=11, bold=True)
     value_font = Font(name='Calibri', size=11, bold=False)
     value_alignment = Alignment(horizontal='left', vertical='center')
+    label_font_color = "2C8F8F"  # Dark teal color for labels
     
     version_font = Font(name='Calibri', size=10, bold=True)
-    version_fill = PatternFill(start_color='FFD9D9D9', end_color='FFD9D9D9', fill_type='solid')
+    version_fill = PatternFill(start_color='FFAFE7E7', end_color='FFAFE7E7', fill_type='solid')
     version_alignment = Alignment(horizontal='right', vertical='center')
     version_border = Border(left=medium_border, top=medium_border)
     
     monthly_header_font = Font(name='Calibri', size=10, bold=True)
     monthly_header_fill = PatternFill(start_color='FFD9D9D9', end_color='FFD9D9D9', fill_type='solid')
-    monthly_header_alignment = Alignment(horizontal='center', vertical='top')
+    monthly_header_alignment = Alignment(horizontal='center', vertical='top', wrap_text=True)
     
     # Data row styles
     data_font = Font(name='Calibri', size=11, bold=False)
@@ -326,8 +327,8 @@ def _create_workbook_for_projects(projects, filename):
     
     # Create a worksheet for each project
     for idx, project_object in enumerate(projects):
-        # Create worksheet with incremental naming: Project(1), Project(2), etc.
-        sheet_name = f"Project({idx + 1})"
+        # Create worksheet with incremental naming: Project (1), Project (2), etc.
+        sheet_name = f"Project ({idx + 1})"
         
         sheet = workbook.create_sheet(title=sheet_name)
         
@@ -342,36 +343,126 @@ def _create_workbook_for_projects(projects, filename):
         sheet.column_dimensions['H'].width = 13.0
         sheet.column_dimensions['I'].width = 7.44
         sheet.column_dimensions['J'].width = 31.44
+        sheet.column_dimensions['K'].width = 0.63
+        
+        #Set row heights to match reference template
+        sheet.row_dimensions[1].height = 45.0  # Header row height
+        sheet.row_dimensions[2].height = 40.5  # Second row height
+        sheet.row_dimensions[3].height = 9
+        sheet.row_dimensions[20].height = 40.5  # Project summary labels
+        sheet.row_dimensions[21].height = 75  # Monthly data headers
         
         # Template headers with formatting
         sheet["A1"] = "TEMPLATE VERSION:"
         sheet["A1"].font = version_font
-        sheet["A1"].fill = version_fill
-        sheet["A1"].alignment = version_alignment
-        sheet["A1"].border = version_border
-        
+       # sheet["A1"].fill = version_fill
+        sheet["A1"].alignment = Alignment(horizontal='right', vertical='center', wrap_text=True)
+        #sheet["A1"].border = version_border
+        # Loop over a range of cells
+    
         sheet["B1"] = project_object.Template_Version
         sheet["B1"].font = Font(name='Calibri', size=12, bold=True)
-        sheet["B1"].fill = version_fill
+       # sheet["B1"].fill = version_fill
         sheet["B1"].alignment = Alignment(horizontal='center', vertical='center')
-        sheet["B1"].border = Border(top=medium_border)
-        
-        # Apply formatting to rest of header row
-        for col in ['C', 'D', 'E', 'F', 'G']:
-            sheet[f"{col}1"].fill = version_fill
-            sheet[f"{col}1"].border = Border(top=medium_border, bottom=medium_border if col in ['D', 'E'] else None)
+       # sheet["B1"].border = Border(top=medium_border)
         
         sheet["H1"] = "OCTANT BUSINESS - PROJECT DATA UPLOAD TEMPLATE"
         sheet["H1"].font = header_font
-        sheet["H1"].fill = header_fill
+       # sheet["H1"].fill = header_fill
         sheet["H1"].alignment = header_alignment
-        sheet["H1"].border = header_border
-        
+       # sheet["H1"].border = header_border
+        for row in sheet['A1:K1']:
+            for cell in row:
+                cell.fill = header_fill
+                # Apply specific borders based on column
+                left_border = medium_border if cell.column_letter in ['A', 'D'] else None
+                right_border = medium_border if cell.column_letter == 'K' else None
+                cell.border = Border(
+                    top=medium_border, 
+                    bottom=medium_border, 
+                    left=left_border, 
+                    right=right_border
+                )
         sheet["F2"] = "PROJECT SUMMARY"
         sheet["F2"].font = summary_font
         sheet["F2"].fill = summary_fill
-        sheet["F2"].alignment = summary_alignment
-        
+        sheet["F2"].alignment = summary_alignment       
+        for row in sheet['A2:K2']:
+            for cell in row:
+                cell.fill = version_fill
+                # Apply specific borders based on column
+                left_border = medium_border if cell.column_letter == 'A' else None
+                right_border = medium_border if cell.column_letter == 'K' else None
+                cell.border = Border(
+                    top=medium_border, 
+                    bottom=medium_border, 
+                    left=left_border, 
+                    right=right_border        
+                )
+        #create borders for the summary rows, and data rows        
+        for row in sheet['C4:E4']:
+            for cell in row:
+                cell.border = Border(
+                    left=medium_border if cell.column_letter == 'C' else None, 
+                    right=medium_border if cell.column_letter == 'E' else None, 
+                    top=medium_border, 
+                    bottom=medium_border
+                )
+        for row in sheet['C5:C9']:
+            for cell in row:
+                cell.border = Border(
+                    left=medium_border, 
+                    right=medium_border, 
+                    top=medium_border, 
+                    bottom=medium_border
+                )
+        for row in sheet['J4:J8']:
+            for cell in row:
+                cell.border = Border(
+                    left=medium_border , 
+                    right=medium_border, 
+                    top=medium_border, 
+                    bottom=medium_border
+                )
+        for row in sheet['C11:J12']:
+            for cell in row:
+                cell.border = Border(
+                    left=medium_border if cell.column_letter == 'C' else None, 
+                    right=medium_border if cell.column_letter == 'J' else None, 
+                    top=medium_border, 
+                    bottom=medium_border
+                )
+        for row in sheet['A14:F14']:
+            for cell in row:
+                cell.border = Border(
+                    left=medium_border if cell.column_letter == 'A' else None, 
+                    right=medium_border if cell.column_letter == 'F' else None, 
+                    top=medium_border, 
+                    bottom=medium_border
+                )
+        for row in sheet['A15:F19']:
+            for cell in row:
+                cell.fill = PatternFill(start_color='FFC6EFCE', end_color='FFC6EFCE', fill_type='solid')
+                cell.border = Border(
+                    left=medium_border if cell.column_letter == 'A' else None, 
+                    right=medium_border if cell.column_letter == 'F' else None, 
+                    top=medium_border if cell.row == 15 else None, 
+                    bottom=medium_border if cell.row == 19 else None
+                )
+        for row in sheet['A20:K20']:
+            for cell in row:
+                cell.fill = summary_fill
+                cell.border = Border(
+                    left=medium_border if cell.column_letter == 'A' else None, 
+                    right=medium_border if cell.column_letter == 'K' else None, 
+                    top=medium_border, 
+                    bottom=medium_border
+                )
+        for row in sheet['K3:K21']:
+            for cell in row:
+                cell.border = Border(   
+                    right=medium_border, 
+                )
         # Project summary labels with formatting and borders
         labels = [
             ("A4", "Project Name*"),
@@ -392,6 +483,7 @@ def _create_workbook_for_projects(projects, filename):
         for cell_ref, label_text in labels:
             sheet[cell_ref] = label_text
             sheet[cell_ref].font = label_font
+            sheet[cell_ref].font = Font(color=label_font_color)
             # Add left border for A column cells
             if cell_ref.startswith('A'):
                 sheet[cell_ref].border = Border(left=medium_border)
@@ -473,8 +565,12 @@ def _create_workbook_for_projects(projects, filename):
         # Merge cells for Notes and Comments columns (I21:K21)
         sheet.merge_cells('I21:K21')
         
+        
         # Monthly data rows
         start_row = 22
+        # Define custom currency format
+        currency_format = '_(* #,##0_);_(* (#,##0);_(* "-"??_);_(@_)'
+        date_format ='DD/MM/YYYY'  # Date format for reporting date
         for record_idx, monthly_record in enumerate(project_object.Monthly_data):
             row = start_row + record_idx
             
@@ -491,6 +587,9 @@ def _create_workbook_for_projects(projects, filename):
                 (f"I{row}", monthly_record.notes)
             ]
             
+            # Currency columns that need special formatting
+            currency_columns = ['B', 'D', 'E', 'F', 'G', 'H']
+            date_columns = ['A']  # Reporting Date
             for cell_ref, value in data_values:
                 sheet[cell_ref] = value
                 sheet[cell_ref].font = data_font
@@ -502,21 +601,20 @@ def _create_workbook_for_projects(projects, filename):
                 elif col_letter in ['B', 'C', 'D', 'E', 'F', 'G', 'H']:
                     sheet[cell_ref].border = data_border
                 else:  # I column
-                    sheet[cell_ref].border = Border(left=thin_border, top=thin_border, bottom=thin_border)
-            
+                    sheet[cell_ref].border = Border(left=thin_border, top=thin_border, bottom=thin_border, right=medium_border)
+                
+                # Apply currency format to specific columns AFTER setting value and borders
+                if col_letter in currency_columns:
+                    sheet[cell_ref].number_format = currency_format
+                if col_letter in date_columns:
+                    sheet[cell_ref].number_format = date_format
             # Merge cells for Notes column (I{row}:K{row})
             sheet.merge_cells(f'I{row}:K{row}')
     
-    # Save the workbook with explicit Excel compatibility
+    # Save the workbook
     try:
         workbook.save(filename)
         print(f"Successfully saved {filename}")
-        
-        # Re-open and re-save to ensure compatibility
-        temp_wb = px.load_workbook(filename)
-        temp_wb.save(filename)
-        temp_wb.close()
-        print(f"Re-saved {filename} for Excel compatibility")
         
     except Exception as e:
         print(f"Error saving {filename}: {e}")

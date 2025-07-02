@@ -6,9 +6,9 @@ import Dataclasses as dc
 
    
 def main():
-    
-    st.title("Excel to DataFrame Converter")
-    
+
+    st.title("Octant AI - Calibration and Operational Data Importer")
+
     uploaded_file = st.file_uploader("Choose an Excel file", type=["xlsx"])
     
     # Initialize df as None

@@ -538,7 +538,7 @@ def _create_workbook_for_projects(projects, filename):
             ("A21", "Reporting Date*"),
             ("B21", "Approved Budget   (including contingency)"),
             ("C21", "Forecast End Date (practical completion)"),
-            ("D21", "Forecast Final Cost*"),
+            ("D21", "Forecast Final Cost* (including  contingency)"),
             ("E21", "Contingency Remaining"),
             ("F21", "Actual Cost to Date*"),
             ("G21", "Forecast Final Revenue*"),
@@ -570,7 +570,7 @@ def _create_workbook_for_projects(projects, filename):
         start_row = 22
         # Define custom currency format
         currency_format = '_(* #,##0_);_(* (#,##0);_(* "-"??_);_(@_)'
-        date_format ='DD/MM/YYYY'  # Date format for reporting date
+        date_format = 'DD/MM/YYYY'  # Date format for reporting date
         for record_idx, monthly_record in enumerate(project_object.Monthly_data):
             row = start_row + record_idx
             
@@ -591,7 +591,18 @@ def _create_workbook_for_projects(projects, filename):
             currency_columns = ['B', 'D', 'E', 'F', 'G', 'H']
             date_columns = ['A']  # Reporting Date
             for cell_ref, value in data_values:
-                sheet[cell_ref] = value
+                # Convert date string to actual date object for Excel
+                if cell_ref.startswith('A') and value and isinstance(value, str):
+                    try:
+                        # Parse the date string (DD/MM/YYYY format) to a datetime object
+                        date_obj = datetime.datetime.strptime(value, "%d/%m/%Y").date()
+                        sheet[cell_ref] = date_obj
+                    except ValueError:
+                        # If parsing fails, keep as string
+                        sheet[cell_ref] = value
+                else:
+                    sheet[cell_ref] = value
+                    
                 sheet[cell_ref].font = data_font
                 
                 # Add borders for data cells

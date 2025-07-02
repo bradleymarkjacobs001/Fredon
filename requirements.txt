@@ -1,0 +1,11 @@
+# Fredon Data Importer - Requirements
+# Essential dependencies for the Fredon project
+
+# Data processing and Excel handling
+pandas>=1.5.0
+openpyxl>=3.0.0
+
+# Streamlit web application framework
+streamlit>=1.25.0
+
+# Note: datetime, dataclasses, typing, sys, and os are built-in Python modules

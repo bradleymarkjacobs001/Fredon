@@ -1,7 +1,7 @@
 import streamlit as st
 import openpyxl as px
 import pandas as pd
-import Fredon_Methods_test as fm
+import Fredon_Methods_v2 as fm
 import Dataclasses as dc
 
    

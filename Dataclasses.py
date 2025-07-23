@@ -11,7 +11,7 @@ class MonthlyRecord:
     actual_cost_to_date: float
     forecast_final_revenue: float
     actual_revenue_to_date: float
-    forecast_end_date: Optional[float] = None
+    forecast_end_date: Optional[str] = ""
     contingency_remaining: Optional[float] = None
     notes: Optional[str] = None
     
@@ -37,7 +37,7 @@ class Projects:
     
 
 class Portfolio:
-    def __init__(self, projects: List[Projects] = None):
+    def __init__(self, projects: List[Projects] = []):
         self.projects = projects or []
 
     def add_project(self, project: Projects):

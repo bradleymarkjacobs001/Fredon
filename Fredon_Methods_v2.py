@@ -15,7 +15,7 @@ def remove_columns(df, columns_to_remove):
 
 def get_list_of_projects(df):
     # Get the column name by index (column 1 = PROJECT_ID)
-    project_col = df.columns[pf.PROJECT_ID] if pf.PROJECT_ID < len(df.columns) else None
+    project_col = df.columns[pf.PROJECT_ID] if pf.PROJECT_ID is not None and pf.PROJECT_ID < len(df.columns) else None
     
     if project_col is None:
         print(f"Column index {pf.PROJECT_ID} not found in DataFrame")
@@ -27,9 +27,9 @@ def get_list_of_projects(df):
 
 def get_projects_with_highest_complete(df):
     # Get column names by index
-    projectid_col = df.columns[pf.PROJECT_ID] if pf.PROJECT_ID < len(df.columns) else None
-    complete_col = df.columns[pf.PERCENTAGE_COMPLETE] if pf.PERCENTAGE_COMPLETE < len(df.columns) else None
-    project_col = df.columns[pf.PROJECT_NAME] if pf.PROJECT_NAME < len(df.columns) else None
+    projectid_col = df.columns[pf.PROJECT_ID] if pf.PROJECT_ID is not None and pf.PROJECT_ID < len(df.columns) else None
+    complete_col = df.columns[pf.PERCENTAGE_COMPLETE] if pf.PERCENTAGE_COMPLETE is not None and pf.PERCENTAGE_COMPLETE < len(df.columns) else None
+    project_col = df.columns[pf.PROJECT_NAME] if pf.PROJECT_NAME is not None and pf.PROJECT_NAME < len(df.columns) else None
     
     if projectid_col is None or complete_col is None or project_col is None:
         st.write(f"Missing columns: PROJECT_ID={projectid_col}, COMPLETE={complete_col}, PROJECT_NAME={project_col}")
@@ -94,7 +94,7 @@ def create_data_objects(df):
         return pd.DataFrame()
     
     # Get the project column name by index
-    project_col = df.columns[pf.PROJECT_ID] if pf.PROJECT_ID < len(df.columns) else None
+    project_col = df.columns[pf.PROJECT_ID] if pf.PROJECT_ID is not None and pf.PROJECT_ID < len(df.columns) else None
     
     if project_col is None:
         st.write(f"Column index {pf.PROJECT_ID} not found in DataFrame")
@@ -120,19 +120,19 @@ def create_data_objects(df):
         try:
             project_object = dc.Projects(
                 Project_Name=project_data.iloc[0, pf.PROJECT_NAME],
-                Project_ID=project_data.iloc[0, pf.PROJECT_ID] if pf.PROJECT_ID < len(df.columns) else "Unknown",
-                Location=project_data.iloc[0, pf.LOCATION] if pf.LOCATION and pf.LOCATION < len(df.columns) else "Unknown",
-                Post_Code=project_data.iloc[0, pf.POST_CODE] if pf.POST_CODE and pf.POST_CODE < len(df.columns) else "",
-                Sector=project_data.iloc[0, pf.CLIENT_SECTOR] if pf.CLIENT_SECTOR < len(df.columns) else "Unknown",
-                Portfolio_Bus_Unit_Dept_ID=project_data.iloc[0, pf.PORTFOLIO_BUS_UNIT_DEPT_ID] if pf.PORTFOLIO_BUS_UNIT_DEPT_ID < len(df.columns) else "Unknown",
-                Asset_Type=project_data.iloc[0, pf.ASSET_TYPE] if pf.ASSET_TYPE and pf.ASSET_TYPE < len(df.columns) else "Other",
-                Contract_Type=project_data.iloc[0, pf.CONTRACT_TYPE] if pf.CONTRACT_TYPE and pf.CONTRACT_TYPE < len(df.columns) else "Unknown",
-                Contract_Financial=project_data.iloc[0, pf.CONTRACT_FINANCIAL] if pf.CONTRACT_FINANCIAL < len(df.columns) else "Unknown",
-                Client=project_data.iloc[0, pf.CLIENT] if pf.CLIENT < len(df.columns) else "Unknown",
-                Stage_of_Work=project_data.iloc[0, pf.STAGE_OF_WORK] if pf.STAGE_OF_WORK < len(df.columns) else "Unknown",
+                Project_ID=project_data.iloc[0, pf.PROJECT_ID] if pf.PROJECT_ID is not None and pf.PROJECT_ID < len(df.columns) else "Unknown",
+                Location=project_data.iloc[0, pf.LOCATION] if pf.LOCATION is not None and pf.LOCATION < len(df.columns) else "Unknown",
+                Post_Code=project_data.iloc[0, pf.POST_CODE] if pf.POST_CODE is not None and pf.POST_CODE < len(df.columns) else "",
+                Sector=project_data.iloc[0, pf.CLIENT_SECTOR] if pf.CLIENT_SECTOR is not None and pf.CLIENT_SECTOR < len(df.columns) else "Unknown",
+                Portfolio_Bus_Unit_Dept_ID=project_data.iloc[0, pf.PORTFOLIO_BUS_UNIT_DEPT_ID] if pf.PORTFOLIO_BUS_UNIT_DEPT_ID is not None and pf.PORTFOLIO_BUS_UNIT_DEPT_ID < len(df.columns) else "Unknown",
+                Asset_Type=project_data.iloc[0, pf.ASSET_TYPE] if pf.ASSET_TYPE is not None and pf.ASSET_TYPE < len(df.columns) else "Other",
+                Contract_Type=project_data.iloc[0, pf.CONTRACT_TYPE] if pf.CONTRACT_TYPE is not None and pf.CONTRACT_TYPE < len(df.columns) else "Unknown",
+                Contract_Financial=project_data.iloc[0, pf.CONTRACT_FINANCIAL] if pf.CONTRACT_FINANCIAL is not None and pf.CONTRACT_FINANCIAL < len(df.columns) else "Unknown",
+                Client=project_data.iloc[0, pf.CLIENT] if pf.CLIENT is not None and pf.CLIENT < len(df.columns) else "Unknown",
+                Stage_of_Work=project_data.iloc[0, pf.STAGE_OF_WORK] if pf.STAGE_OF_WORK is not None and pf.STAGE_OF_WORK < len(df.columns) else "Unknown",
                 Template_Version="0.2",
                 Status="Operational",
-                Comments=str(project_data.iloc[0, pf.COMMENTS]) if hasattr(pf, 'COMMENTS') and pf.COMMENTS and pf.COMMENTS < len(df.columns) else None
+                Comments=str(project_data.iloc[0, pf.COMMENTS]) if hasattr(pf, 'COMMENTS') and pf.COMMENTS is not None and pf.COMMENTS < len(df.columns) else None
             )
             
             # Process monthly data for this project
@@ -140,7 +140,7 @@ def create_data_objects(df):
             for mon in range(number_of_months):
                 try:
                     # Handle date conversion properly
-                    if pf.DATE and pf.DATE < len(df.columns):
+                    if pf.DATE is not None and pf.DATE < len(df.columns):
                         date_value = project_data.iloc[mon, pf.DATE]
                         if pd.isna(date_value):
                             record_date = ""  # Empty string if null
@@ -160,16 +160,73 @@ def create_data_objects(df):
                     else:
                         record_date = ""  # Empty string if no date column
                     
+                    # Helper function to safely convert values to float
+                    def safe_float_convert(value):
+                        if pd.isna(value):
+                            return 0.0
+                        if isinstance(value, (int, float)):
+                            return float(value)
+                        if isinstance(value, str):
+                            try:
+                                return float(value.replace(',', '').replace('$', '').strip())
+                            except (ValueError, AttributeError):
+                                return 0.0
+                        if hasattr(value, 'timestamp'):  # Handle Timestamp objects
+                            return float(value.timestamp())
+                        return 0.0
+                    
+                    # Helper function to safely convert dates to formatted strings
+                    def safe_date_convert(value):
+                        if pd.isna(value):
+                            return ""
+                        if isinstance(value, str):
+                            try:
+                                # Try to parse existing string dates
+                                parsed_date = pd.to_datetime(value)
+                                return parsed_date.strftime("%d/%m/%Y")
+                            except:
+                                return ""
+                        if hasattr(value, 'strftime'):  # Handle datetime/Timestamp objects
+                            return value.strftime("%d/%m/%Y")
+                        return ""
+                    
+                    # Helper function to safely convert percentage values
+                    def safe_percentage_convert(value):
+                        if pd.isna(value):
+                            return None
+                        if isinstance(value, (int, float)):
+                            # If value is between 0-1, assume it's decimal (0.75 = 75%)
+                            if 0 <= value <= 1:
+                                return value * 100
+                            # If value is greater than 1, assume it's already percentage (75 = 75%)
+                            else:
+                                return value
+                        if isinstance(value, str):
+                            try:
+                                # Remove % sign if present and convert
+                                clean_value = float(value.replace('%', '').strip())
+                                # If the original had %, treat as percentage already
+                                if '%' in value:
+                                    return clean_value
+                                # If no %, apply same logic as numbers
+                                elif 0 <= clean_value <= 1:
+                                    return clean_value * 100
+                                else:
+                                    return clean_value
+                            except (ValueError, AttributeError):
+                                return None
+                        return None
+                    
                     monthly_record = dc.MonthlyRecord(
                         Date=record_date,
-                        approved_budget=float(project_data.iloc[mon, pf.APPROVED_BUDGET]) if pf.APPROVED_BUDGET and pf.APPROVED_BUDGET < len(df.columns) else 0.0,
-                        forecast_end_date=float(project_data.iloc[mon, pf.FORECAST_END_DATE]) if pf.FORECAST_END_DATE and pf.FORECAST_END_DATE < len(df.columns) else 0.0,
-                        forecast_final_cost=float(project_data.iloc[mon, pf.FORECAST_FINAL_COST]) if pf.FORECAST_FINAL_COST and pf.FORECAST_FINAL_COST < len(df.columns) else 0.0,
-                        contingency_remaining=float(project_data.iloc[mon, pf.CONTINGENCY_REMAINING]) if pf.CONTINGENCY_REMAINING and pf.CONTINGENCY_REMAINING < len(df.columns) else 0.0,
-                        actual_cost_to_date=float(project_data.iloc[mon, pf.ACTUAL_COST_TO_DATE]) if pf.ACTUAL_COST_TO_DATE and pf.ACTUAL_COST_TO_DATE < len(df.columns) else 0.0,
-                        forecast_final_revenue=float(project_data.iloc[mon, pf.FORECAST_FINAL_REVENUE]) if pf.FORECAST_FINAL_REVENUE and pf.FORECAST_FINAL_REVENUE < len(df.columns) else 0.0,
-                        actual_revenue_to_date=float(project_data.iloc[mon, pf.ACTUAL_REVENUE_TO_DATE]) if pf.ACTUAL_REVENUE_TO_DATE and pf.ACTUAL_REVENUE_TO_DATE < len(df.columns) else 0.0,
-                        notes=f"{float(project_data.iloc[mon, pf.PERCENTAGE_COMPLETE]) * 100:.0f}% Cost Complete" if pf.PERCENTAGE_COMPLETE and pf.PERCENTAGE_COMPLETE < len(df.columns) and pd.notnull(project_data.iloc[mon, pf.PERCENTAGE_COMPLETE]) else None
+                        approved_budget=safe_float_convert(project_data.iloc[mon, pf.APPROVED_BUDGET]) if pf.APPROVED_BUDGET is not None and pf.APPROVED_BUDGET < len(df.columns) else 0.0,
+                        forecast_end_date=safe_date_convert(project_data.iloc[mon, pf.FORECAST_END_DATE]) if pf.FORECAST_END_DATE is not None and pf.FORECAST_END_DATE < len(df.columns) else "",
+                        forecast_final_cost=safe_float_convert(project_data.iloc[mon, pf.FORECAST_FINAL_COST]) if pf.FORECAST_FINAL_COST is not None and pf.FORECAST_FINAL_COST < len(df.columns) else 0.0,
+                        contingency_remaining=safe_float_convert(project_data.iloc[mon, pf.CONTINGENCY_REMAINING]) if pf.CONTINGENCY_REMAINING is not None and pf.CONTINGENCY_REMAINING < len(df.columns) else 0.0,
+                        actual_cost_to_date=safe_float_convert(project_data.iloc[mon, pf.ACTUAL_COST_TO_DATE]) if pf.ACTUAL_COST_TO_DATE is not None and pf.ACTUAL_COST_TO_DATE < len(df.columns) else 0.0,
+                        forecast_final_revenue=safe_float_convert(project_data.iloc[mon, pf.FORECAST_FINAL_REVENUE]) if pf.FORECAST_FINAL_REVENUE is not None and pf.FORECAST_FINAL_REVENUE < len(df.columns) else 0.0,
+                        actual_revenue_to_date=safe_float_convert(project_data.iloc[mon, pf.ACTUAL_REVENUE_TO_DATE]) if pf.ACTUAL_REVENUE_TO_DATE is not None and pf.ACTUAL_REVENUE_TO_DATE < len(df.columns) else 0.0,
+                        notes=f"{safe_percentage_convert(project_data.iloc[mon, pf.PERCENTAGE_COMPLETE]):.0f}% Cost Complete" if pf.PERCENTAGE_COMPLETE is not None and pf.PERCENTAGE_COMPLETE < len(df.columns) and pd.notnull(project_data.iloc[mon, pf.PERCENTAGE_COMPLETE]) and safe_percentage_convert(project_data.iloc[mon, pf.PERCENTAGE_COMPLETE]) is not None else None
                        
                     )
                     project_object.Monthly_data.append(monthly_record)
@@ -589,10 +646,10 @@ def _create_workbook_for_projects(projects, filename):
             
             # Currency columns that need special formatting
             currency_columns = ['B', 'D', 'E', 'F', 'G', 'H']
-            date_columns = ['A']  # Reporting Date
+            date_columns = ['A', 'C']  # Reporting Date and Forecast End Date
             for cell_ref, value in data_values:
                 # Convert date string to actual date object for Excel
-                if cell_ref.startswith('A') and value and isinstance(value, str):
+                if cell_ref[0] in date_columns and value and isinstance(value, str):
                     try:
                         # Parse the date string (DD/MM/YYYY format) to a datetime object
                         date_obj = datetime.datetime.strptime(value, "%d/%m/%Y").date()
